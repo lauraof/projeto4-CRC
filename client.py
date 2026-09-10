@@ -4,6 +4,7 @@ from utils import *
 import time
 import os
 import msvcrt
+from crc import Calculator, Crc16
 
 serialName = "COM5"
 pasta_cliente = "arquivos_client"
@@ -198,108 +199,116 @@ def main():
                 packet_number = header["packet_number"]
                 total_packets = header["total_packets"]
                 payload_size = header["payload_size"]
-                # file_id começa em 1
-                file_info = received_files[file_id - 1]
-                print()
-                print("----------------------------------------")
-                print("Recebendo arquivo:", file_info["name"])
-                print("Pacote:", packet_number, "de", total_packets)
-                print("Payload:", payload_size, "bytes")
-                # GUARDA OS DADOS
-                # VERIFICA SE É UM PACOTE NOVO
-                if packet_number > file_info["last_packet"]:
-                    file_info["data"] += payload
-                    file_info["received_packets"] += 1
-                    file_info["total_packets"] = total_packets
-                    file_info["last_packet"] = packet_number
-                    print('Pacote novo recebido.')
+                crc_recebido = header("crc1") + header("crc2")
+                crc_calculado = Crc16(payload)
+                if crc_calculado == crc_recebido:
+                    # file_id começa em 1
+                    file_info = received_files[file_id - 1]
+                    print()
+                    print("----------------------------------------")
+                    print("Recebendo arquivo:", file_info["name"])
+                    print("Pacote:", packet_number, "de", total_packets)
+                    print("Payload:", payload_size, "bytes")
+                    # GUARDA OS DADOS
+                    # VERIFICA SE É UM PACOTE NOVO
+                    if packet_number > file_info["last_packet"]:
+                        file_info["data"] += payload
+                        file_info["received_packets"] += 1
+                        file_info["total_packets"] = total_packets
+                        file_info["last_packet"] = packet_number
+                        print('Pacote novo recebido.')
+                    else:
+                        print('Pacote duplicado recebido.')
+                        print('Os dados não serão adicionados novamente.')
+
+                    # VERIFICA TECLA DE CONTROLE
+                    tecla = check_keyboard()
+                    control = NORMAL
+                    if tecla == "p":
+                        control = PAUSE
+                    elif tecla == "r":
+                        control = RESTART
+                    elif tecla == "a":
+                        control = ABORT
+                    
+                    # ENVIA ACK + COMANDO DE CONTROLE
+                    ack_packet = build_packet(msg_type=ACK, file_id=file_id, ack_number=packet_number, control=control)
+                    send_packet(com1, ack_packet)
+                    print("ACK enviado:", "arquivo", file_id, "pacote", packet_number)
+
+                    # PAUSA
+                    if control == PAUSE:
+                        print()
+                        print("========================================")
+                        print("        TRANSMISSÃO PAUSADA")
+                        print("========================================")
+                        print("Pressione C para continuar.")
+                        print("Pressione R para reiniciar.")
+                        print("Pressione A para abortar.")
+                        paused = True
+                        while paused:
+                            if msvcrt.kbhit():
+                                tecla = msvcrt.getch().decode().lower()
+                                # CONTINUAR
+                                if tecla == "c":
+                                    command_packet = build_packet(msg_type=ACK, control=CONTINUE)
+                                    send_packet(com1, command_packet)
+                                    paused = False
+                                    print()
+                                    print("Transmissão continuada.")
+
+                                # REINICIAR
+                                elif tecla == "r":
+                                    command_packet = build_packet(msg_type=ACK, control=RESTART)
+                                    send_packet(com1, command_packet)
+                                    # Apaga tudo que já havia sido recebido
+                                    for arquivo in received_files:
+                                        arquivo["data"] = b''
+                                        arquivo["received_packets"] = 0
+                                        arquivo["total_packets"] = 0
+                                        arquivo["last_packet"] = 0
+                                    paused = False
+                                    print()
+                                    print("========================================")
+                                    print("       TRANSMISSÃO REINICIADA")
+                                    print("========================================")
+
+                                # ABORTAR
+                                elif tecla == "a":
+                                    command_packet = build_packet(msg_type=ACK, control=ABORT)
+                                    send_packet(com1, command_packet)
+                                    transmission_aborted = True
+                                    transmission_finished = True
+                                    paused = False
+                                    print()
+                                    print("========================================")
+                                    print("       TRANSMISSÃO ABORTADA")
+                                    print("========================================")
+                            time.sleep(0.05)
+                    
+                    elif control == RESTART:
+                        for arquivo in received_files:
+                            arquivo["data"] = b''
+                            arquivo["received_packets"] = 0
+                            arquivo["total_packets"] = 0
+                            arquivo["last_packet"] = 0
+                        print()
+                        print("========================================")
+                        print("       TRANSMISSÃO REINICIADA")
+                        print("========================================")
+
+                    elif control == ABORT:
+                        transmission_aborted = True
+                        transmission_finished = True
+                        print()
+                        print("========================================")
+                        print("       TRANSMISSÃO ABORTADA")
+                        print("========================================")
                 else:
-                    print('Pacote duplicado recebido.')
-                    print('Os dados não serão adicionados novamente.')
-
-                # VERIFICA TECLA DE CONTROLE
-                tecla = check_keyboard()
-                control = NORMAL
-                if tecla == "p":
-                    control = PAUSE
-                elif tecla == "r":
-                    control = RESTART
-                elif tecla == "a":
-                    control = ABORT
-                
-                # ENVIA ACK + COMANDO DE CONTROLE
-                ack_packet = build_packet(msg_type=ACK, file_id=file_id, ack_number=packet_number, control=control)
-                send_packet(com1, ack_packet)
-                print("ACK enviado:", "arquivo", file_id, "pacote", packet_number)
-
-                # PAUSA
-                if control == PAUSE:
-                    print()
-                    print("========================================")
-                    print("        TRANSMISSÃO PAUSADA")
-                    print("========================================")
-                    print("Pressione C para continuar.")
-                    print("Pressione R para reiniciar.")
-                    print("Pressione A para abortar.")
-                    paused = True
-                    while paused:
-                        if msvcrt.kbhit():
-                            tecla = msvcrt.getch().decode().lower()
-                            # CONTINUAR
-                            if tecla == "c":
-                                command_packet = build_packet(msg_type=ACK, control=CONTINUE)
-                                send_packet(com1, command_packet)
-                                paused = False
-                                print()
-                                print("Transmissão continuada.")
-
-                            # REINICIAR
-                            elif tecla == "r":
-                                command_packet = build_packet(msg_type=ACK, control=RESTART)
-                                send_packet(com1, command_packet)
-                                # Apaga tudo que já havia sido recebido
-                                for arquivo in received_files:
-                                    arquivo["data"] = b''
-                                    arquivo["received_packets"] = 0
-                                    arquivo["total_packets"] = 0
-                                    arquivo["last_packet"] = 0
-                                paused = False
-                                print()
-                                print("========================================")
-                                print("       TRANSMISSÃO REINICIADA")
-                                print("========================================")
-
-                            # ABORTAR
-                            elif tecla == "a":
-                                command_packet = build_packet(msg_type=ACK, control=ABORT)
-                                send_packet(com1, command_packet)
-                                transmission_aborted = True
-                                transmission_finished = True
-                                paused = False
-                                print()
-                                print("========================================")
-                                print("       TRANSMISSÃO ABORTADA")
-                                print("========================================")
-                        time.sleep(0.05)
-                
-                elif control == RESTART:
-                    for arquivo in received_files:
-                        arquivo["data"] = b''
-                        arquivo["received_packets"] = 0
-                        arquivo["total_packets"] = 0
-                        arquivo["last_packet"] = 0
-                    print()
-                    print("========================================")
-                    print("       TRANSMISSÃO REINICIADA")
-                    print("========================================")
-
-                elif control == ABORT:
-                    transmission_aborted = True
-                    transmission_finished = True
-                    print()
-                    print("========================================")
-                    print("       TRANSMISSÃO ABORTADA")
-                    print("========================================")
+                    # construir e enviar um pacote avisando que é erro de crc
+                    pacote = build_packet(msg_type=CRC_ERROR)
+                    send_packet(com1, pacote)
+                    print("CRC_ERROR enviado:", "arquivo", file_id, "pacote", packet_number)
 
             # FIM DE UM ARQUIVO
             elif msg_type == END_FILE:

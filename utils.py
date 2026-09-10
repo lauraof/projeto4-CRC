@@ -29,6 +29,8 @@ ACK = 8
 END_FILE = 9
 # Indica que todos os arquivos terminaram.
 END_TRANSFER = 10
+# Indica que houve erro na verificação do CRC
+CRC_ERROR = 11
 
 # COMANDOS DE CONTROLE
 NORMAL = 0
@@ -51,15 +53,15 @@ ABORT = 4
 # H4 -> tamanho do payload
 # H5 -> número do pacote confirmado (ACK)
 # H6 -> campo auxiliar / controle
-# H7 -> reservado
-# H8 -> reservado
+# H7 -> crc 1/2
+# H8 -> crc 2/2
 # H9 -> reservado
 #
 # ============================================================
 
 
-def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, h7=0, h8=0, h9=0):
-    fields = [msg_type, file_id, packet_number, total_packets, payload_size, ack_number, control, h7, h8, h9]
+def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, crc1=0, crc2=0, h9=0):
+    fields = [msg_type, file_id, packet_number, total_packets, payload_size, ack_number, control, crc1, crc2, h9]
     return bytes(fields)
 
 
@@ -72,8 +74,8 @@ def parse_header(header):
         "payload_size": header[4],
         "ack_number": header[5],
         "control": header[6],
-        "h7": header[7],
-        "h8": header[8],
+        "crc1": header[7],
+        "crc2": header[8],
         "h9": header[9],
     }
 
@@ -83,7 +85,7 @@ def parse_header(header):
 # ============================================================
 
 
-def build_packet(msg_type, payload=b'', file_id=0, packet_number=0, total_packets=0, ack_number=0, control=0):
+def build_packet(msg_type, payload=b'', file_id=0, packet_number=0, total_packets=0, ack_number=0, control=0, crc1=0, crc2=0):
     header = build_header(
         msg_type=msg_type,
         file_id=file_id,
@@ -91,7 +93,9 @@ def build_packet(msg_type, payload=b'', file_id=0, packet_number=0, total_packet
         total_packets=total_packets,
         payload_size=len(payload),
         ack_number=ack_number,
-        control=control)
+        control=control,
+        crc1=crc1,
+        crc2=crc2)
 
     return header + payload + EOP
 
@@ -133,7 +137,8 @@ def message_name(msg_type):
         DATA: "DATA",
         ACK: "ACK",
         END_FILE: "END_FILE",
-        END_TRANSFER: "END_TRANSFER",}
+        END_TRANSFER: "END_TRANSFER",
+        CRC_ERROR: "CRC_ERROR",}
     return names.get(msg_type, f"UNKNOWN({msg_type})")
 
 def send_packet(com1, packet):
