@@ -53,16 +53,16 @@ ABORT = 4
 # H4 -> tamanho do payload
 # H5 -> número do pacote confirmado (ACK)
 # H6 -> campo auxiliar / controle
-# H7 -> crc 1/2
-# H8 -> crc 2/2
-# H9 -> reservado
+# H7 -> reservado
+# H8 -> crc 1/2
+# H9 -> crc 2/2
 #
 # ============================================================
 
 
-def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, crc1=0, crc2=0, h9=0):
-    fields = [msg_type, file_id, packet_number, total_packets, payload_size, ack_number, control, crc1, crc2, h9]
-    return bytes(fields)
+def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, h7=0, crc1=0, crc2=0):
+    fields = [msg_type, file_id, packet_number, total_packets, payload_size, ack_number, control, h7]
+    return bytes(fields) + crc1 + crc2
 
 
 def parse_header(header):
@@ -74,9 +74,9 @@ def parse_header(header):
         "payload_size": header[4],
         "ack_number": header[5],
         "control": header[6],
-        "crc1": header[7],
-        "crc2": header[8],
-        "h9": header[9],
+        "h7": header[7],
+        "crc1": header[8],
+        "crc2": header[9],
     }
 
 
@@ -145,3 +145,12 @@ def send_packet(com1, packet):
     com1.sendData(packet)
     while com1.tx.getIsBussy():
         time.sleep(0.05)
+
+def escreve_arquivo(env_rec, tipo_msg, tamanho=14, pacote=0, total_pacote=0, crc_pacote=0):
+    data_hora = time.strftime("%d/%m/%Y %H:%M:%S")
+    if tamanho == 14:
+        linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho}'
+    else:
+        linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho} | {pacote} | {total_pacote} | {crc_pacote}'
+    with open("log-client.txt", "a") as log:
+        log.write(linha+"\n")
