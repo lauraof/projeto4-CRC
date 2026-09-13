@@ -193,15 +193,19 @@ def main():
         while not transmission_finished:
             packet, header, payload = receive_packet(com1)
             msg_type = header["msg_type"]
+            # anota no log
+            #escreve_arquivo()
             # PACOTE DE DADOS
             if msg_type == DATA:
                 file_id = header["file_id"]
                 packet_number = header["packet_number"]
                 total_packets = header["total_packets"]
                 payload_size = header["payload_size"]
-                crc_recebido = header("crc1") + header("crc2")
-                crc_calculado = Crc16(payload)
-                if crc_calculado == crc_recebido:
+                crc_recebido = bytes([header["crc1"],header["crc2"]])
+                calculadora = Calculator(Crc16.XMODEM)
+                crc_calculado = calculadora.checksum(payload)
+                crc_calculado = crc_calculado
+                if crc_calculado == int.from_bytes(crc_recebido):
                     # file_id começa em 1
                     file_info = received_files[file_id - 1]
                     print()
