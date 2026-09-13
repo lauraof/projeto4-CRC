@@ -231,7 +231,7 @@ def main():
                     packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc1=crc1, crc2=crc2)
                     print()
                     print("Enviando arquivo", file_info["id"], "-", file_info["name"])
-                    escreve_arquivo_s(env_rec="env", tipo_msg="DATA", tamanho=len(packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
+                    escreve_arquivo_s(env_rec="env", tipo_msg="DATA", tamanho=len(packet), arquivo=file_id, pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                     print("Pacote", packet_number, "de", total_packets)
                     print("Payload:", len(payload), "bytes")
                     send_packet(com1, packet)
@@ -254,7 +254,7 @@ def main():
                             print()
                             print(mensagem)
                             print("Retransmitindo pacote...")
-                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(ack_packet), arquivo= ack_header["file_info"], pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
+                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(ack_packet), arquivo=ack_header["file_id"], pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                             send_packet(com1, packet)
                             tentativa += 1
 
