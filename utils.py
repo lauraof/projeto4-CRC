@@ -144,7 +144,7 @@ def send_packet(com1, packet):
 
 def escreve_arquivo_c(env_rec, tipo_msg, tamanho=14, arquivo=0, pacote=0, total_pacote=0, crc_pacote=0):
     data_hora = time.strftime("%d/%m/%Y %H:%M:%S")
-    if tamanho == 14:
+    if tamanho == 14 or tipo_msg.startswith("FILE"):
         linha = f'{data_hora} | {env_rec} | tipo_mensagem: {tipo_msg} | tamanho_pacote: {tamanho}'
     else:
         linha = f'{data_hora} | {env_rec} | tipo_mensagem: {tipo_msg} | tamanho_pacote: {tamanho} | arquivo: {arquivo} | num_pacote: {pacote} | total_pacotes: {total_pacote} | crc: {crc_pacote}'
@@ -153,7 +153,7 @@ def escreve_arquivo_c(env_rec, tipo_msg, tamanho=14, arquivo=0, pacote=0, total_
 
 def escreve_arquivo_s(env_rec, tipo_msg, tamanho=14, arquivo=0, pacote=0, total_pacote=0, crc_pacote=0):
     data_hora = time.strftime("%d/%m/%Y %H:%M:%S")
-    if tamanho == 14:
+    if tamanho == 14 or tipo_msg.startswith("FILE"):
         linha = f'{data_hora} | {env_rec} | tipo_mensagem: {tipo_msg} | tamanho_pacote: {tamanho}'
     else:
         linha = f'{data_hora} | {env_rec} | tipo_mensagem: {tipo_msg} | tamanho_pacote: {tamanho} | arquivo: {arquivo} | num_pacote: {pacote} | total_pacotes: {total_pacote} | crc: {crc_pacote}'
