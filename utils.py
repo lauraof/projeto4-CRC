@@ -6,10 +6,6 @@ MAX_PAYLOAD_SIZE = 100
 EOP = b'\xAA\xBB\xCC\xDD'
 
 # TIPOS DE MENSAGEM
-
-# Handshake inicial:
-# cliente pergunta se o servidor está vivo e solicita a lista
-# de arquivos disponíveis.
 HANDSHAKE = 1
 # Servidor envia a lista de arquivos disponíveis.
 FILE_LIST = 2
@@ -60,7 +56,7 @@ ABORT = 4
 # ============================================================
 
 
-def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, h7=0, crc1=0, crc2=0):
+def build_header(msg_type=0, file_id=0, packet_number=0, total_packets=0, payload_size=0, ack_number=0, control=0, h7=0, crc1=b'\x00', crc2=b'\x00'):
     fields = [msg_type, file_id, packet_number, total_packets, payload_size, ack_number, control, h7]
     return bytes(fields) + crc1 + crc2
 
@@ -85,7 +81,7 @@ def parse_header(header):
 # ============================================================
 
 
-def build_packet(msg_type, payload=b'', file_id=0, packet_number=0, total_packets=0, ack_number=0, control=0, crc1=0, crc2=0):
+def build_packet(msg_type, payload=b'', file_id=0, packet_number=0, total_packets=0, ack_number=0, control=0, crc1=b'\x00', crc2=b'\x00'):
     header = build_header(
         msg_type=msg_type,
         file_id=file_id,
