@@ -62,6 +62,7 @@ def main():
 
         handshake_packet = build_packet(msg_type=HANDSHAKE)
         send_packet(com1, handshake_packet)
+        escreve_arquivo_c(env_rec='env', tipo_msg='HANDSHAKE')
 
         print("HANDSHAKE enviado.")
         print("Aguardando lista de arquivos...")
@@ -70,6 +71,7 @@ def main():
         packet, header, payload = receive_packet(com1)
 
         if header["msg_type"] == FILE_LIST:
+            escreve_arquivo_c(env_rec='rec', tipo_msg='FILE_LIST', tamanho=len(packet))
             print()
             print("Lista de arquivos recebida!")
             available_files = parse_file_list(payload)
@@ -110,11 +112,13 @@ def main():
                     # ENVIA FILE_REQUEST
                     request_packet = build_packet(msg_type=FILE_REQUEST, file_id=option)
                     send_packet(com1, request_packet)
+                    escreve_arquivo_c(env_rec='env', tipo_msg='FILE_REQUEST', tamanho=len(request_packet))
                     print()
                     print("Solicitação enviada:", file_name)
                     # ESPERA CONFIRMAÇÃO
                     packet, header, payload = receive_packet(com1)
                     if header["msg_type"] == FILE_SELECTED:
+                        escreve_arquivo_c(env_rec='rec', tipo_msg='FILE_SELECTED', tamanho=len(packet))
                         confirmed_file = payload.decode()
                         selected_files.append(confirmed_file)
                         print()
@@ -141,6 +145,7 @@ def main():
         # AVISA QUE TERMINOU A SELEÇÃO
         finish_packet = build_packet(msg_type=FINISH_SELECTION)
         send_packet(com1, finish_packet)
+        escreve_arquivo_c(env_rec='env', tipo_msg='FINISH_SELECTION', tamanho=len(finish_packet))
         print()
         print("----------------------------------------")
         print("Seleção finalizada.")
@@ -155,6 +160,7 @@ def main():
         print("Aguardando início da transmissão...")
         packet, header, payload = receive_packet(com1)
         if header["msg_type"] == START_TRANSFER:
+            escreve_arquivo_c(env_rec='rec', tipo_msg='START_TRANSFER', tamanho=len(packet))
             print()
             print("Servidor iniciou a transmissão!")
             print()
@@ -194,14 +200,15 @@ def main():
             packet, header, payload = receive_packet(com1)
             msg_type = header["msg_type"]
             # anota no log
-            #escreve_arquivo()
             # PACOTE DE DADOS
             if msg_type == DATA:
+                # anota no log
                 file_id = header["file_id"]
                 packet_number = header["packet_number"]
                 total_packets = header["total_packets"]
                 payload_size = header["payload_size"]
                 crc_recebido = bytes([header["crc1"],header["crc2"]])
+                escreve_arquivo_c(env_rec='rec', tipo_msg='DATA',tamanho=len(packet), arquivo=file_id, pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
                 calculadora = Calculator(Crc16.XMODEM)
                 crc_calculado = calculadora.checksum(payload)
                 crc_calculado = crc_calculado
@@ -238,6 +245,7 @@ def main():
                     # ENVIA ACK + COMANDO DE CONTROLE
                     ack_packet = build_packet(msg_type=ACK, file_id=file_id, ack_number=packet_number, control=control)
                     send_packet(com1, ack_packet)
+                    escreve_arquivo_c(env_rec='env', tipo_msg='ACK', tamanho=len(ack_packet), arquivo=file_id, pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
                     print("ACK enviado:", "arquivo", file_id, "pacote", packet_number)
 
                     # PAUSA
@@ -257,6 +265,7 @@ def main():
                                 if tecla == "c":
                                     command_packet = build_packet(msg_type=ACK, control=CONTINUE)
                                     send_packet(com1, command_packet)
+                                    escreve_arquivo_c(env_rec='env', tipo_msg='ACK', tamanho=len(command_packet), arquivo=file_id, pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
                                     paused = False
                                     print()
                                     print("Transmissão continuada.")
@@ -265,6 +274,8 @@ def main():
                                 elif tecla == "r":
                                     command_packet = build_packet(msg_type=ACK, control=RESTART)
                                     send_packet(com1, command_packet)
+                                    escreve_arquivo_c(env_rec='env', tipo_msg='ACK', tamanho=len(command_packet), arquivo=file_id, pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
+
                                     # Apaga tudo que já havia sido recebido
                                     for arquivo in received_files:
                                         arquivo["data"] = b''
@@ -281,6 +292,7 @@ def main():
                                 elif tecla == "a":
                                     command_packet = build_packet(msg_type=ACK, control=ABORT)
                                     send_packet(com1, command_packet)
+                                    escreve_arquivo_c(env_rec='env', tipo_msg='ACK', arquivo=file_id, tamanho=len(command_packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
                                     transmission_aborted = True
                                     transmission_finished = True
                                     paused = False
@@ -312,6 +324,7 @@ def main():
                     # construir e enviar um pacote avisando que é erro de crc
                     pacote = build_packet(msg_type=CRC_ERROR)
                     send_packet(com1, pacote)
+                    escreve_arquivo_c(env_rec='env', tipo_msg='CRC_ERROR', arquivo=file_id, tamanho=len(pacote), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_recebido)
                     print("CRC_ERROR enviado:", "arquivo", file_id, "pacote", packet_number)
 
             # FIM DE UM ARQUIVO
