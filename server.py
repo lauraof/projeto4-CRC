@@ -227,7 +227,7 @@ def main():
                     crc2 = crc_total[1:2]
                     print(f"separado: {crc1}, {crc2}")
                     # MONTA PACOTE DE DADOS (deve haver 2 bytes para o CRC: um para o divisor e outro para o resto)
-                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc1=crc2, crc2=crc2)
+                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc1=crc1, crc2=crc2)
                     print()
                     print("Enviando arquivo", file_info["id"], "-", file_info["name"])
                     escreve_arquivo_s(env_rec="env", tipo_msg="DATA", tamanho=len(packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
@@ -253,7 +253,7 @@ def main():
                             print()
                             print(mensagem)
                             print("Retransmitindo pacote...")
-                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
+                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(ack_packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                             send_packet(com1, packet)
                             tentativa += 1
 
@@ -262,7 +262,7 @@ def main():
                             if (ack_header["file_id"] == file_info["id"] and ack_header["ack_number"] == packet_number):
                                 print()
                                 print("ACK recebido:", "arquivo",file_info["id"],"pacote",packet_number)
-                                escreve_arquivo_s(env_rec="rec", tipo_msg="ACK")
+                                escreve_arquivo_s(env_rec="rec", tipo_msg="ACK", tamanho=len(ack_packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                                 ack_recebido = True
                                 file_info["next_packet"] += 1
 
