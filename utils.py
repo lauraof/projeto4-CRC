@@ -142,11 +142,20 @@ def send_packet(com1, packet):
     while com1.tx.getIsBussy():
         time.sleep(0.05)
 
-def escreve_arquivo(env_rec, tipo_msg, tamanho=14, pacote=0, total_pacote=0, crc_pacote=0):
+def escreve_arquivo_c(env_rec, tipo_msg, tamanho=14, pacote=0, total_pacote=0, crc_pacote=0):
     data_hora = time.strftime("%d/%m/%Y %H:%M:%S")
     if tamanho == 14:
         linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho}'
     else:
         linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho} | {pacote} | {total_pacote} | {crc_pacote}'
     with open("log-client.txt", "a") as log:
+        log.write(linha+"\n")
+
+def escreve_arquivo_s(env_rec, tipo_msg, tamanho=14, pacote=0, total_pacote=0, crc_pacote=0):
+    data_hora = time.strftime("%d/%m/%Y %H:%M:%S")
+    if tamanho == 14:
+        linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho}'
+    else:
+        linha = f'{data_hora} | {env_rec} | {tipo_msg} | {tamanho} | {pacote} | {total_pacote} | {crc_pacote}'
+    with open("log-server.txt", "a") as log:
         log.write(linha+"\n")
