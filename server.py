@@ -107,9 +107,11 @@ def main():
 
         if header["msg_type"] == HANDSHAKE:
             print("HANDSHAKE recebido do cliente.")
+            escreve_arquivo_s(env_rec="rec", tipo_msg="HANDSHAKE")
 
             file_list_payload = build_file_list_payload(available_files)
             file_list_packet = build_packet(msg_type=FILE_LIST, payload=file_list_payload)
+            escreve_arquivo_s(env_rec="env", tipo_msg="FILE_LIST")
             send_packet(com1, file_list_packet)
             print("Lista de arquivos enviada ao cliente.")
         else:
@@ -132,6 +134,7 @@ def main():
             # CLIENTE ESCOLHEU UM ARQUIVO
             if msg_type == FILE_REQUEST:
                 file_id = header["file_id"]
+                escreve_arquivo_s(env_rec="rec", tipo_msg="FILE REQUEST")
                 if file_id >= 1 and file_id <= len(available_files):
                     file_name = available_files[file_id - 1]
                     if file_name not in selected_files:
@@ -144,6 +147,7 @@ def main():
 
                     confirmation_payload = file_name.encode()
                     confirmation = build_packet(msg_type=FILE_SELECTED, payload=confirmation_payload, file_id=file_id)
+                    escreve_arquivo_s(env_rec="env", tipo_msg="FILE SELECTED")
                     send_packet(com1, confirmation)
                     print("Confirmação enviada ao cliente.")
                 else:
@@ -193,6 +197,7 @@ def main():
         print("----------------------------------------")
 
         start_packet = build_packet(msg_type=START_TRANSFER)
+        escreve_arquivo_s(env_rec="env", tipo_msg="START_TRANSFER")
         send_packet(com1, start_packet)
 
         # TRANSMISSÃO INTERCALADA
@@ -222,9 +227,10 @@ def main():
                     crc2 = crc_total[1:2]
                     print(f"separado: {crc1}, {crc2}")
                     # MONTA PACOTE DE DADOS (deve haver 2 bytes para o CRC: um para o divisor e outro para o resto)
-                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc2=crc2)
+                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc1=crc2, crc2=crc2)
                     print()
                     print("Enviando arquivo", file_info["id"], "-", file_info["name"])
+                    escreve_arquivo_s(env_rec="env", tipo_msg="DATA", tamanho=len(packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                     print("Pacote", packet_number, "de", total_packets)
                     print("Payload:", len(payload), "bytes")
                     send_packet(com1, packet)
@@ -240,11 +246,14 @@ def main():
                         if ack_header is None or ack_header["msg_type"] == CRC_ERROR:
                             if ack_header["msg_type"] == CRC_ERROR:
                                 mensagem = "O pacote foi corrompido no meio do caminho"
+                                tipo_msg = "CRC_ERROR"
                             else:
                                 mensagem = "[TIMEOUT] ACK não recebido."
+                                tipo_msg = "DATA"
                             print()
                             print(mensagem)
                             print("Retransmitindo pacote...")
+                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                             send_packet(com1, packet)
                             tentativa += 1
 
@@ -253,6 +262,7 @@ def main():
                             if (ack_header["file_id"] == file_info["id"] and ack_header["ack_number"] == packet_number):
                                 print()
                                 print("ACK recebido:", "arquivo",file_info["id"],"pacote",packet_number)
+                                escreve_arquivo_s(env_rec="rec", tipo_msg="ACK")
                                 ack_recebido = True
                                 file_info["next_packet"] += 1
 
@@ -328,12 +338,15 @@ def main():
             # FINALIZA CADA ARQUIVO
             for file_info in files_to_send:
                 end_file_packet = build_packet(msg_type=END_FILE, file_id=file_info["id"])
+                escreve_arquivo_s(env_rec="env", tipo_msg="END_FILE", tamanho=len(end_file_packet), total_pacote=total_packets)
                 send_packet(com1, end_file_packet)
                 print()
                 print("Arquivo", file_info["name"], "transmitido completamente.")
 
         # FINALIZA TODA A TRANSMISSÃO
             end_packet = build_packet(msg_type=END_TRANSFER)
+            escreve_arquivo_s(env_rec="env", tipo_msg="END_TRANSFER", tamanho=len(end_packet), total_pacote=total_packets)
+   
             send_packet(com1, end_packet)
 
         print()
