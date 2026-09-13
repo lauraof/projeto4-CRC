@@ -1,5 +1,7 @@
 from enlace import *
 from utils import *
+from crc import Calculator, Crc16
+import struct
 
 import time
 import os
@@ -72,7 +74,6 @@ def build_file_list_payload(files):
 # MAIN
 
 def main():
-    try:
         print("========================================")
         print("          SERVIDOR INICIADO")
         print("========================================")
@@ -210,9 +211,18 @@ def main():
                     payload = packets[next_packet]
                     packet_number = next_packet + 1
                     total_packets = len(packets)
-
-                    # MONTA PACOTE DE DADOS
-                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets)
+                    # Fazer a divisão do CRC
+                    calculadora = Calculator(Crc16.XMODEM)
+                    resto = calculadora.checksum(payload)
+                    resto = resto.to_bytes(length=2, byteorder="big")
+                    # passar para hexadecimal (ai ele nao faz o baguio do ascii)
+                    print(f"Esse foi o resto: {resto}")
+                    crc1 = int.from_bytes(resto[0:7])
+                    crc2 = int.from_bytes(resto[8:15])
+                    print(f"Essa é a primeira parte do resto: {crc1}")
+                    print(f"Essa é a segunda parte do resto: {crc2}")
+                    # MONTA PACOTE DE DADOS (deve haver 2 bytes para o CRC: um para o divisor e outro para o resto)
+                    packet = build_packet(msg_type=DATA, payload=payload, file_id=file_info["id"], packet_number=packet_number, total_packets=total_packets, crc1=crc1, crc2=crc2)
                     print()
                     print("Enviando arquivo", file_info["id"], "-", file_info["name"])
                     print("Pacote", packet_number, "de", total_packets)
@@ -227,14 +237,17 @@ def main():
                         ack_packet, ack_header, ack_payload = receive_packet_timeout(com1)
 
                         # TIMEOUT
-                        if ack_header is None:
+                        if ack_header is None or ack_header["msg_type"] == CRC_ERROR:
+                            if ack_header["msg_type"] == CRC_ERROR:
+                                mensagem = "O pacote foi corrompido no meio do caminho"
+                            else:
+                                mensagem = "[TIMEOUT] ACK não recebido."
                             print()
-                            print("[TIMEOUT] ACK não recebido.")
+                            print(mensagem)
                             print("Retransmitindo pacote...")
                             send_packet(com1, packet)
                             tentativa += 1
                             continue
-
                         # RECEBEU ALGUMA COISA
                         if ack_header["msg_type"] == ACK:
                             if (ack_header["file_id"] == file_info["id"] and ack_header["ack_number"] == packet_number):
@@ -342,11 +355,11 @@ def main():
         print("Servidor encerrado.")
         com1.disable()
 
-    except Exception as erro:
-        print()
-        print("Ops! Ocorreu um erro no servidor.")
-        print(erro)
-        com1.disable()
+    # except Exception as erro:
+    #     print()
+    #     print("Ops! Ocorreu um erro no servidor.")
+    #     print(erro)
+    #     com1.disable()
 
 if __name__ == "__main__":
     main()
