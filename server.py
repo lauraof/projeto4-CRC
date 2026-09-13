@@ -157,6 +157,7 @@ def main():
             elif msg_type == FINISH_SELECTION:
                 print()
                 print("Cliente terminou a seleção.")
+                escreve_arquivo_s(env_rec="rec", tipo_msg="FINISH_SELECTION")
                 selecting = False
 
         # MOSTRA ARQUIVOS SELECIONADOS
@@ -253,7 +254,7 @@ def main():
                             print()
                             print(mensagem)
                             print("Retransmitindo pacote...")
-                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(ack_packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
+                            escreve_arquivo_s(env_rec="env", tipo_msg=tipo_msg, tamanho=len(ack_packet), arquivo= ack_header["file_info"], pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                             send_packet(com1, packet)
                             tentativa += 1
 
@@ -262,7 +263,7 @@ def main():
                             if (ack_header["file_id"] == file_info["id"] and ack_header["ack_number"] == packet_number):
                                 print()
                                 print("ACK recebido:", "arquivo",file_info["id"],"pacote",packet_number)
-                                escreve_arquivo_s(env_rec="rec", tipo_msg="ACK", tamanho=len(ack_packet), pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
+                                escreve_arquivo_s(env_rec="rec", tipo_msg="ACK", tamanho=len(ack_packet), arquivo=file_info["id"], pacote=packet_number, total_pacote=total_packets, crc_pacote=crc_total)
                                 ack_recebido = True
                                 file_info["next_packet"] += 1
 
@@ -276,6 +277,8 @@ def main():
                                     paused = True
                                     while paused:
                                         command_packet, command_header, command_payload = receive_packet(com1)
+                                        escreve_arquivo_s(env_rec="rec", tipo_msg="COMMAND")
+
                                         # CONTINUAR
                                         if command_header["control"] == CONTINUE:
                                             paused = False
